@@ -4,7 +4,7 @@
 """
 BSD 2-Clause License
 
-Copyright (c) 2024, mattklapman & tetherpoint
+Copyright (c) 2024, mattklapman
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -66,6 +66,7 @@ ST7567_SET_BOOSTER_5X = const(0x01)
 class ST7567(framebuf.FrameBuffer):
     def __init__(self, spi, dc, cs=None, rs=None, rotation=0, inverse: boolean=False, contrast=0x1F, regulation_ratio=0x03) -> None:
         # override framebuf parent
+        self._xoffset = (0x00 if rotation == 0 else 0x04) # rotation by 180 needs a column offset
         self.spi = spi
         self.dc = dc
         if cs != None:
@@ -128,10 +129,12 @@ class ST7567(framebuf.FrameBuffer):
         # orientation can be 0 or 180
         if rotation == 0:
             self._write_command(ST7567_SEG_DIRECTION_NORMAL) 
-            self._write_command(ST7567_COM_DIRECTION_NORMAL)       
+            self._write_command(ST7567_COM_DIRECTION_NORMAL)
+            self._xoffset = 0x00
         elif rotation == 180:
             self._write_command(ST7567_SEG_DIRECTION_REVERSE)
             self._write_command(ST7567_COM_DIRECTION_REVERSE)
+            self._xoffset = 0x04 # quirk of the ST7567
 
     def power_save_on(self) -> None:
         # place display into low power mode (clears display)
@@ -152,7 +155,7 @@ class ST7567(framebuf.FrameBuffer):
         # override framebuf parent
         self._write_command([ST7567_SET_START_LINE | 0x00])
         for page_count in range(8): # 64 / 8
-            self._write_command([ST7567_SET_PAGE_ADDRESS | page_count, ST7567_SET_COL_ADDRESS_MSB | 0x00, ST7567_SET_COL_ADDRESS_LSB | 0x00])
+            self._write_command([ST7567_SET_PAGE_ADDRESS | page_count, ST7567_SET_COL_ADDRESS_MSB | 0x00, ST7567_SET_COL_ADDRESS_LSB | self._xoffset])
             self._write_data(self.buffer[(128 * page_count):(128 * page_count + 128)])
 
     def _write_data(self, data: bytearray) -> None:
