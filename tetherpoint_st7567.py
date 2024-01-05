@@ -81,7 +81,7 @@ class ST7567(framebuf.FrameBuffer):
         self.fill(0) # clear buffer
         self.reset()
         self.show() # clear DDRAM pages 0~8
-        self.init_display(rotation, inverse, contrast, regulation_ratio)
+        self.init(rotation, inverse, contrast, regulation_ratio)
         self.rotate(rotation)
         self.invert(inverse)
 
@@ -95,7 +95,7 @@ class ST7567(framebuf.FrameBuffer):
         # software reset
         self._write_command(ST7567_RESET)
 
-    def init_display(self, rotation=0, inverse=False, contrast=0x1F, regulation_ratio=0x03) -> None:
+    def init(self, rotation=0, inverse=False, contrast=0x1F, regulation_ratio=0x03) -> None:
         # required after a reset
         init_commands = [
             ST7567_SET_BOOSTER_START, ST7567_SET_BOOSTER_4X,
@@ -136,20 +136,21 @@ class ST7567(framebuf.FrameBuffer):
             self._write_command(ST7567_COM_DIRECTION_REVERSE)
             self._xoffset = 0x04 # quirk of the ST7567
 
-    def power_save_on(self) -> None:
-        # place display into low power mode (clears display)
+    def sleep(self, on: boolean=True) -> None:
+        # enable/disable low power mode (turns off visible display)
+        # keeps display RAM & register settings
         # From datasheet:
         #   stops internal oscillation circuit;
         #   stops the built-in power circuits;
         #   stops the LCD driving circuits and keeps the common and segment outputs at VSS.
-        self._write_command(ST7567_DISPLAY_OFF)
-        self._write_command(ST7567_DISPLAY_ALL_PIXELS_ON)
-        #time.sleep_ms(250) # can physically remove power after 250ms to POWER OFF
-
-    def power_save_off(self) -> None:
-        # From datasheet: "After exiting Power Save mode, the settings will return to be as they were before."
-        self._write_command(ST7567_DISPLAY_ALL_PIXELS_NORMAL)
-        self._write_command(ST7567_DISPLAY_ON)       
+        #   After exiting Power Save mode, the settings will return to be as they were before.
+        if on:
+            self._write_command(ST7567_DISPLAY_OFF)
+            self._write_command(ST7567_DISPLAY_ALL_PIXELS_ON)
+            #time.sleep_ms(250) # can physically remove power after 250ms to POWER OFF
+        else:
+            self._write_command(ST7567_DISPLAY_ALL_PIXELS_NORMAL)
+            self._write_command(ST7567_DISPLAY_ON)       
 
     def show(self) -> None:
         # override framebuf parent
